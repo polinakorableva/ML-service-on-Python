@@ -1,0 +1,88 @@
+version: "3.9"
+
+services:
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: mluser
+      POSTGRES_PASSWORD: mlpass
+      POSTGRES_DB: mlservice
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - model_storage:/app/data/models
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - model_storage:/app/data/models
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    ports:
+      - "8501:8501"
+    env_file: .env
+    depends_on:
+      - db
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - api
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      # монтируем папку с настройками провизионинга
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      # монтируем папку с JSON-дашбордами
+      - ./monitoring/grafana/provisioning/dashboards:/var/lib/grafana/dashboards
+      # том для хранения данных Grafana
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  postgres_data:
+  model_storage:
+  grafana_data:

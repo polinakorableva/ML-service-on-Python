@@ -2,11 +2,11 @@
 Сервис для запуска ML-предсказаний с биллингом на кредитах. Загружаешь sklearn-модель — получаешь предсказание. Оплата только за успешный результат.
 
 ## Запуск
-'''bash
+```bash
 cp .env.example .env
 docker-compose up --build
 docker exec -it ml-service-in-python-api-1 alembic upgrade head
-'''
+```
 
 ## Сервисы
 API + Swagger: http://localhost:8000/docs  
